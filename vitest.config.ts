@@ -9,7 +9,10 @@ export default defineConfig({
     },
   },
   test: {
+    // Pure-logic tests run in node; anything that renders opts into jsdom with
+    // a `// @vitest-environment jsdom` header.
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    setupFiles: ["./src/test/setup.ts"],
   },
 });
