@@ -1,0 +1,76 @@
+# routines
+
+Registro de rutinas diarias. Una acción a la vez, un tap por acción.
+
+Qué resuelve (de `docs/idea.md`):
+
+- Dejar de decidir cuál es el siguiente paso: la app siempre propone la acción
+  que toca.
+- Compartir el cumplimiento con el psicólogo sin escribirlo a mano cada día: la
+  lectura es pública, basta con enviar la URL.
+- Medir: cuánto tarda cada acción, y cuánto se desvía cada Round de su plan.
+- Hacer una sola cosa a la vez: la pantalla de registro tiene un solo botón
+  grande.
+
+## Conceptos
+
+| Entidad | Qué es |
+| --- | --- |
+| **Routine** | Un propósito ("Mañanas"). Agrupa todos los planes que ha tenido. |
+| **Plan** | Cómo era esa rutina en un periodo: hora de inicio y lista ordenada de acciones con su duración. Dos planes de una misma rutina nunca se solapan. |
+| **PlannedAction** | Una acción de la rutina ("Ducha"). Su id es lo que une un Round de marzo con uno de octubre en los gráficos. |
+| **Round** | Lo registrado un día concreto para una rutina. Como mucho uno por rutina y día, así que la fecha decide el plan. |
+| **PerformedAction** | Un paso registrado. Solo guarda **cuándo terminó**: las duraciones se derivan encadenando esos instantes desde el inicio del Round. |
+
+## Stack
+
+- **Frontend:** React + Vite + shadcn/ui (registro `base`) + Recharts, en `src/`.
+- **Backend:** cuatro funciones serverless de Vercel en `api/`.
+- **Base de datos:** Postgres en Supabase, esquema en `db/schema/` (Drizzle).
+- **Auth:** Supabase Auth, un solo usuario, sin registro público. Los `GET` no
+  requieren sesión; todo lo demás sí.
+- **Fechas y horas:** [Temporal](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal),
+  vía `temporal-polyfill`. `src/lib/temporal.ts` es el único sitio que lo
+  importa, y Biome marca como error cualquier uso del global `Date` dentro de
+  `src/`.
+
+Todo el cálculo temporal vive en `src/lib/schedule.ts`, sin React y sin fetch,
+con tests que lo comprueban contra las tablas de `docs/idea.md`.
+
+## Puesta en marcha
+
+1. **Crear el proyecto en Supabase** (supabase.com/dashboard). Anota la URL, la
+   `anon key` y la `service_role key` (Project Settings → API), y las dos
+   connection strings de Postgres (Project Settings → Database): la del
+   **pooler** (puerto 6543) y la **directa** (puerto 5432).
+2. **Crear el único usuario** en Authentication → Users, y desactivar "Allow new
+   users to sign up" en Authentication → Settings.
+3. **Variables de entorno:** copia `.env.example` a `.env` y rellénalo.
+4. **Dependencias y esquema:**
+   ```
+   pnpm install
+   pnpm db:migrate   # aplica db/migrations contra Supabase
+   pnpm db:seed      # crea "Mañanas" y "After work" con sus acciones
+   ```
+   La migración inicial instala `btree_gist` y crea la constraint `EXCLUDE` que
+   impide que dos planes de una rutina se solapen.
+5. **Arrancar:** `pnpm dev` para el frontend. Las funciones de `api/` necesitan
+   `pnpm dlx vercel dev` con el proyecto enlazado y el mismo `.env`.
+6. **Desplegar:** `vercel link` y configura las mismas variables en Vercel.
+
+## Comandos
+
+| | |
+| --- | --- |
+| `pnpm dev` | Servidor de desarrollo |
+| `pnpm build` | Typecheck + build de producción |
+| `pnpm test` | Tests de `src/lib/schedule.ts` |
+| `pnpm lint` / `pnpm format` | Biome |
+| `pnpm db:generate` | Genera una migración a partir del esquema |
+| `pnpm db:migrate` | Aplica las migraciones |
+| `pnpm db:studio` | Explorador de la base de datos |
+| `pnpm db:seed` | Siembra las rutinas de `docs/idea.md` (idempotente) |
+
+`pnpm build` falla si faltan `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY`: sin
+ellas el bundle se queda vacío y el despliegue serviría una página en blanco sin
+avisar.
