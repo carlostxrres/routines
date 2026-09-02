@@ -1,11 +1,12 @@
-import { es } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatDayLong, fromLegacyDate, type Temporal, toLegacyDate } from "@/lib/temporal";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatDayLong, type Temporal } from "@/lib/temporal";
 import { cn } from "@/lib/utils";
+
+const DatePickerCalendar = lazy(() => import("@/components/DatePickerCalendar"));
 
 // A Temporal.PlainDate-shaped wrapper around react-day-picker, which speaks
 // `Date`. The conversion lives in lib/temporal.ts; nothing above this component
@@ -48,19 +49,16 @@ export function DatePicker({
         <CalendarIcon />
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          locale={es}
-          weekStartsOn={1}
-          selected={value ? toLegacyDate(value) : undefined}
-          defaultMonth={value ? toLegacyDate(value) : undefined}
-          disabled={isDisabled ? (date) => isDisabled(fromLegacyDate(date)) : undefined}
-          onSelect={(date) => {
-            if (!date) return;
-            onChange(fromLegacyDate(date));
-            setOpen(false);
-          }}
-        />
+        <Suspense fallback={<Skeleton className="h-72 w-64" />}>
+          <DatePickerCalendar
+            value={value}
+            isDisabled={isDisabled}
+            onChange={(date) => {
+              onChange(date);
+              setOpen(false);
+            }}
+          />
+        </Suspense>
       </PopoverContent>
     </Popover>
   );

@@ -168,3 +168,33 @@ export function toLegacyDate(date: Temporal.PlainDate): Date {
 export function fromLegacyDate(date: Date): Temporal.PlainDate {
   return new Temporal.PlainDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
 }
+
+// ---------------------------------------------------------------------------
+// Weeks
+// ---------------------------------------------------------------------------
+
+// `weekStartDay` follows the settings table's 0=Sun..6=Sat convention;
+// Temporal's dayOfWeek is 1=Mon..7=Sun.
+export function startOfWeek(date: Temporal.PlainDate, weekStartDay = 1): Temporal.PlainDate {
+  const target = weekStartDay === 0 ? 7 : weekStartDay;
+  return date.subtract({ days: (date.dayOfWeek - target + 7) % 7 });
+}
+
+export function weekDays(date: Temporal.PlainDate, weekStartDay = 1): Temporal.PlainDate[] {
+  const start = startOfWeek(date, weekStartDay);
+  return Array.from({ length: 7 }, (_, index) => start.add({ days: index }));
+}
+
+// "2 sept – 8 sept 2026"
+export function formatWeekRange(days: Temporal.PlainDate[]): string {
+  const first = days[0];
+  const last = days[days.length - 1];
+  return `${formatDayShort(first)} – ${formatDayLong(last)}`;
+}
+
+// Hour of day (0..24, fractional) for an instant, in the display zone — the
+// vertical axis of the week view.
+export function hourOfDay(instant: Temporal.Instant, timeZone: string = getTimeZone()): number {
+  const time = zoned(instant, timeZone).toPlainTime();
+  return time.hour + time.minute / 60 + time.second / 3600;
+}
