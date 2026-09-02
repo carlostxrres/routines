@@ -46,10 +46,7 @@ export function planForDate<TPlan extends PeriodLike>(
 }
 
 // Every date on which `routine` has a plan is a date a Round can exist for.
-export function coversDate(
-  routine: { plans: PeriodLike[] },
-  date: Temporal.PlainDate,
-): boolean {
+export function coversDate(routine: { plans: PeriodLike[] }, date: Temporal.PlainDate): boolean {
   return planForDate(routine, date) !== null;
 }
 
@@ -66,10 +63,7 @@ export function isRoutineCurrent(
 // The plan's actions in order, each with its cumulative offset and — when the
 // plan has a start time — the clock time it is expected to begin at. This is
 // the column "Hora inicio" of the tables in docs/idea.md.
-export function plannedSchedule(
-  plan: PlanLike,
-  plannedActions: ActionLike[],
-): ScheduledAction[] {
+export function plannedSchedule(plan: PlanLike, plannedActions: ActionLike[]): ScheduledAction[] {
   const byId = new Map(plannedActions.map((action) => [action.id, action]));
   const start = plan.startTime === null ? null : parseTime(plan.startTime);
 

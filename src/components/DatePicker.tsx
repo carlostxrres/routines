@@ -40,7 +40,11 @@ export function DatePicker({
           />
         }
       >
-        {value ? formatDayLong(value) : <span className="text-muted-foreground">{placeholder}</span>}
+        {value ? (
+          formatDayLong(value)
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
+        )}
         <CalendarIcon />
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
