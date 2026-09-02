@@ -14,6 +14,9 @@ export const roundInputSchema = z.object({
 export const roundPatchSchema = roundInputSchema.partial();
 
 export const performedActionInputSchema = z.object({
+  // Optional and client-supplied, so the recording page can render a new
+  // action optimistically under the id it will actually have.
+  id: z.uuid().optional(),
   roundId: z.uuid(),
   // null for a free action typed into the combobox.
   plannedActionId: z.uuid().nullable().default(null),

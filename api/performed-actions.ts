@@ -26,6 +26,7 @@ async function upsert(req: VercelRequest, res: VercelResponse) {
   const [action] = await db
     .insert(performedActions)
     .values({
+      id: input.id,
       roundId: input.roundId,
       plannedActionId: input.plannedActionId,
       name: input.name,
