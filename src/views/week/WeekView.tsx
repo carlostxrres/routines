@@ -1,7 +1,16 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarOff, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Tip } from "@/components/Tip";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRounds } from "@/hooks/useRounds";
 import { useSettings } from "@/hooks/useSettings";
@@ -94,6 +103,7 @@ export function WeekView({ routine }: ViewProps) {
     ];
   }, [blocks]);
 
+  const isCurrentWeek = days.some((day) => day.equals(today()));
   const span = Math.max(maxHour - minHour, 1);
   const hourTicks = Array.from({ length: span + 1 }, (_, index) => minHour + index);
 
@@ -123,7 +133,29 @@ export function WeekView({ routine }: ViewProps) {
       {loading && <Skeleton className="h-72 w-full" />}
 
       {!loading && blocks.length === 0 && (
-        <p className="text-sm text-muted-foreground">Sin Rounds de esta rutina esta semana.</p>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CalendarOff />
+            </EmptyMedia>
+            <EmptyTitle>Semana sin Rounds</EmptyTitle>
+            {/* The week's dates are already in the selector right above, so
+                they are not repeated here. */}
+            <EmptyDescription>
+              No hay ningún Round de "{routine.name}" en la semana seleccionada.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            {isCurrentWeek ? (
+              <Button render={<Link to="/rounds/new" />}>Registrar un Round</Button>
+            ) : (
+              // Browsing back through empty weeks is easy to get lost in.
+              <Button variant="outline" onClick={() => setAnchor(today())}>
+                Volver a esta semana
+              </Button>
+            )}
+          </EmptyContent>
+        </Empty>
       )}
 
       {!loading && blocks.length > 0 && (
