@@ -1,7 +1,18 @@
+import { ChartLine } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRounds } from "@/hooks/useRounds";
 import { useSettings } from "@/hooks/useSettings";
@@ -70,9 +81,20 @@ export function ActionsView({ routine }: ViewProps) {
   if (loading) return <Skeleton className="h-72 w-full" />;
   if (data.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No hay Rounds de esta rutina en los últimos {WINDOW_DAYS} días.
-      </p>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ChartLine />
+          </EmptyMedia>
+          <EmptyTitle>Sin datos que dibujar</EmptyTitle>
+          <EmptyDescription>
+            No hay ningún Round de "{routine.name}" en los últimos {WINDOW_DAYS} días.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button render={<Link to="/rounds/new" />}>Registrar un Round</Button>
+        </EmptyContent>
+      </Empty>
     );
   }
 
