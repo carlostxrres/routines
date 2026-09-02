@@ -134,7 +134,7 @@ function Segment({
     <Tip
       content={tip}
       label={tip}
-      className="absolute inset-y-0 flex items-center overflow-hidden px-1 text-[10px] font-medium text-background text-xl"
+      className="absolute inset-y-0 flex items-center overflow-hidden px-1 text-[10px] font-medium text-background"
       style={{
         left: `${left.toFixed(3)}%`,
         // Zero-length actions ("Salir de casa") would otherwise be invisible.
