@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Tip } from "@/components/Tip";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRounds } from "@/hooks/useRounds";
@@ -153,8 +154,10 @@ export function WeekView({ routine }: ViewProps) {
                   {blocks
                     .filter((block) => block.dayIndex === dayIndex)
                     .map((block) => (
-                      <div
+                      <Tip
                         key={block.id}
+                        content={`${block.name} · ${formatSeconds(block.durationSeconds)} · acaba a las ${block.endLabel}`}
+                        label={block.name}
                         className="absolute inset-x-0 rounded-sm"
                         style={{
                           top: `${((block.startHour - minHour) / span) * 100}%`,
@@ -162,7 +165,6 @@ export function WeekView({ routine }: ViewProps) {
                           height: `max(2px, ${((block.endHour - block.startHour) / span) * 100}%)`,
                           backgroundColor: block.color,
                         }}
-                        title={`${block.name} · ${formatSeconds(block.durationSeconds)} · acaba a las ${block.endLabel}`}
                       />
                     ))}
                 </div>

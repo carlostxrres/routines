@@ -1,5 +1,6 @@
 import type { RoundWithActions } from "@shared/types";
 import { useMemo } from "react";
+import { Tip } from "@/components/Tip";
 import { FREE_ACTION_COLOR } from "@/lib/actionColors";
 import { performedSegments, type ScheduledAction } from "@/lib/schedule";
 import { formatSeconds, parseInstant, type Temporal } from "@/lib/temporal";
@@ -52,14 +53,13 @@ export function RoundTimeline({
   return (
     <div className="flex flex-col gap-2">
       <Track label="Plan">
-        {schedule.map((action, index) => (
+        {schedule.map((action) => (
           <Segment
             key={action.plannedActionId}
             left={(action.offset.total("second") / scale) * 100}
             width={(action.length.total("second") / scale) * 100}
             color={colors.get(action.plannedActionId) ?? FREE_ACTION_COLOR}
-            title={`${action.name} · ${formatSeconds(action.length.total("second"))}`}
-            index={index}
+            tip={`${action.name} · ${formatSeconds(action.length.total("second"))}`}
           />
         ))}
       </Track>
@@ -76,12 +76,14 @@ export function RoundTimeline({
                   ? (colors.get(segment.plannedActionId) ?? FREE_ACTION_COLOR)
                   : FREE_ACTION_COLOR
               }
-              title={`${segment.name} · ${formatSeconds(segment.duration.total("second"))}`}
+              tip={`${segment.name} · ${formatSeconds(segment.duration.total("second"))}`}
               label={segment.name}
             />
           ))}
         {startedAt && inProgressSeconds > 0 && (
-          <div
+          <Tip
+            content={`En curso · ${formatSeconds(Math.round(inProgressSeconds))}`}
+            label="Acción en curso"
             // The action in progress: hatched rather than solid, because its
             // length is still growing.
             className="absolute inset-y-0 rounded-sm bg-[repeating-linear-gradient(45deg,var(--muted-foreground)_0_2px,transparent_2px_6px)] opacity-60"
@@ -89,7 +91,6 @@ export function RoundTimeline({
               left: `${((performedSeconds / scale) * 100).toFixed(3)}%`,
               width: `${((inProgressSeconds / scale) * 100).toFixed(3)}%`,
             }}
-            title={`En curso · ${formatSeconds(Math.round(inProgressSeconds))}`}
           />
         )}
       </Track>
@@ -120,29 +121,28 @@ function Segment({
   left,
   width,
   color,
-  title,
+  tip,
   label,
-  index,
 }: {
   left: number;
   width: number;
   color: string;
-  title: string;
+  tip: string;
   label?: string;
-  index?: number;
 }) {
   return (
-    <div
-      className="absolute inset-y-0 flex items-center overflow-hidden rounded-sm px-1 text-[10px] font-medium text-background"
+    <Tip
+      content={tip}
+      label={tip}
+      className="absolute inset-y-0 flex items-center overflow-hidden px-1 text-[10px] font-medium text-background text-xl"
       style={{
         left: `${left.toFixed(3)}%`,
         // Zero-length actions ("Salir de casa") would otherwise be invisible.
         width: `max(2px, ${width.toFixed(3)}%)`,
         backgroundColor: color,
       }}
-      title={title}
     >
-      {width >= MIN_LABEL_PERCENT && (label ?? String((index ?? 0) + 1))}
-    </div>
+      {(width >= MIN_LABEL_PERCENT && label) ?? label}
+    </Tip>
   );
 }
