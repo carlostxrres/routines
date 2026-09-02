@@ -40,9 +40,18 @@ con tests que lo comprueban contra las tablas de `docs/idea.md`.
 ## Puesta en marcha
 
 1. **Crear el proyecto en Supabase** (supabase.com/dashboard). Anota la URL, la
-   `anon key` y la `service_role key` (Project Settings → API), y las dos
-   connection strings de Postgres (Project Settings → Database): la del
-   **pooler** (puerto 6543) y la **directa** (puerto 5432).
+   `anon key` y la `service_role key` (Project Settings → API), y la connection
+   string del **pooler** (Project Settings → Database).
+
+   Usa el pooler para las dos variables, cambiando solo el puerto: `6543` para
+   `DATABASE_URL` (modo *transaction*, lo que usa la app) y `5432` para
+   `DIRECT_URL` (modo *session*, lo que necesita drizzle-kit para el DDL).
+
+   No uses el host "directo" (`db.<ref>.supabase.co`): solo publica registro
+   AAAA, así que en una red sin IPv6 —la mayoría de conexiones domésticas, y
+   las funciones de Vercel— falla con `ENETUNREACH`. El modo *session* del
+   pooler es su sustituto. Ojo también con el usuario: el pooler exige
+   `postgres.<project-ref>`, no `postgres` a secas.
 2. **Crear el único usuario** en Authentication → Users, y desactivar "Allow new
    users to sign up" en Authentication → Settings.
 3. **Variables de entorno:** copia `.env.example` a `.env` y rellénalo.
