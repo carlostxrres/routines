@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Field } from "@/components/forms/Field";
 import { PageHeader } from "@/components/PageHeader";
+import { SignInEmpty } from "@/components/SignInEmpty";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -186,23 +187,19 @@ export function SettingsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardContent>
-          {session ? (
-            <>
-              <p className="mb-3 text-sm text-muted-foreground">{session.user.email}</p>
-              <Button variant="destructive" size="lg" className="w-full" onClick={handleSignOut}>
-                <LogOut />
-                Cerrar sesión
-              </Button>
-            </>
-          ) : (
-            <Button size="lg" className="w-full" render={<Link to="/login" />}>
-              Iniciar sesión
+      {session ? (
+        <Card>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">{session.user.email}</p>
+            <Button variant="destructive" size="lg" className="w-full" onClick={handleSignOut}>
+              <LogOut />
+              Cerrar sesión
             </Button>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <SignInEmpty description="Las preferencias y la edición requieren iniciar sesión. El historial y las rutinas se pueden consultar sin cuenta." />
+      )}
 
       {dialog}
     </div>

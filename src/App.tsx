@@ -1,6 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { RequireAuth } from "@/components/RequireAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SettingsProvider } from "@/hooks/useSettings";
@@ -25,16 +24,15 @@ function App() {
               <Route path="/views/:slug" element={<ViewsPage />} />
               <Route path="/rounds" element={<RoundsPage />} />
               <Route path="/routines" element={<RoutinesPage />} />
-              {/* /rounds/* is not wrapped in RequireAuth: reading is public, so a
-                logged-out visitor gets a sign-in prompt in place (SignInEmpty)
-                instead of being bounced to /login. */}
+              {/* No route is auth-gated. Reading is public, and the pages that
+                  need a session render a sign-in prompt in place (SignInEmpty)
+                  rather than redirecting: a shared link should never dead-end
+                  on a login form, whichever page it points at. */}
               <Route path="/rounds/new" element={<RoundPage />} />
               <Route path="/rounds/:id" element={<RoundPage />} />
-              <Route element={<RequireAuth />}>
-                <Route path="/routines/new" element={<RoutinePage />} />
-                <Route path="/routines/:id" element={<RoutinePage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Route>
+              <Route path="/routines/new" element={<RoutinePage />} />
+              <Route path="/routines/:id" element={<RoutinePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

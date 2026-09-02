@@ -62,13 +62,17 @@ beforeEach(() => {
   patch.mockReset();
   remove.mockReset();
 
-  get.mockImplementation((path: string) => {
-    if (path.startsWith("/settings")) return Promise.resolve(settings);
-    if (path.startsWith("/routines")) return Promise.resolve([structuredClone(routine)]);
-    if (path.startsWith("/rounds")) return Promise.resolve([]);
-    return Promise.reject(new Error(`Unmocked GET ${path}`));
-  });
+  get.mockImplementation(defaultGet);
 });
+
+function defaultGet(path: string) {
+  if (path.startsWith("/settings")) return Promise.resolve(settings);
+  // The real API returns one object for /routines/<id> and a list for /routines.
+  if (path.startsWith("/routines/")) return Promise.resolve(structuredClone(routine));
+  if (path.startsWith("/routines")) return Promise.resolve([structuredClone(routine)]);
+  if (path.startsWith("/rounds")) return Promise.resolve([]);
+  return Promise.reject(new Error(`Unmocked GET ${path}`));
+}
 
 async function renderApp(path: string) {
   route(path);
@@ -96,13 +100,9 @@ describe("the recording page", () => {
     };
     post.mockResolvedValueOnce(created);
     post.mockResolvedValue({});
-    get.mockImplementation((path: string) => {
-      if (path.startsWith("/settings")) return Promise.resolve(settings);
-      if (path.startsWith("/routines")) return Promise.resolve([structuredClone(routine)]);
-      if (path.startsWith("/rounds/round-1")) return Promise.resolve(created);
-      if (path.startsWith("/rounds")) return Promise.resolve([]);
-      return Promise.reject(new Error(`Unmocked GET ${path}`));
-    });
+    get.mockImplementation((path: string) =>
+      path.startsWith("/rounds/round-1") ? Promise.resolve(created) : defaultGet(path),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Terminar acción" }));
 
@@ -131,6 +131,27 @@ describe("the recording page", () => {
 
     expect(await screen.findByText("Inicia sesión")).toBeDefined();
   });
+});
+
+describe("pages that need a session", () => {
+  // None of these redirect: a link shared with someone else has to land on the
+  // page it names, not on a login form.
+  it.each(["/rounds/new", "/routines/new", "/routines/routine-1", "/settings"])(
+    "%s prompts to sign in in place",
+    async (path) => {
+      const { supabase } = await import("@/lib/supabase");
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: null },
+      } as never);
+
+      await renderApp(path);
+
+      expect(await screen.findByText("Inicia sesión")).toBeDefined();
+      expect(window.location.pathname).toBe(path);
+
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({ data: { session } } as never);
+    },
+  );
 });
 
 describe("the app shell", () => {

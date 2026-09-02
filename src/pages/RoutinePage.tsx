@@ -6,10 +6,12 @@ import { toast } from "sonner";
 import { Field } from "@/components/forms/Field";
 import { PageHeader } from "@/components/PageHeader";
 import { PlanEditor } from "@/components/routine/PlanEditor";
+import { SignInEmpty } from "@/components/SignInEmpty";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useRoutine } from "@/hooks/useRoutines";
 import { apiClient } from "@/lib/api-client";
@@ -26,6 +28,7 @@ import {
 export function RoutinePage() {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
+  const { session } = useAuth();
   const { routine, error: loadError, loading } = useRoutine(id);
   const { confirm, dialog } = useConfirmDialog();
 
@@ -96,6 +99,14 @@ export function RoutinePage() {
       ...current,
       plans: current.plans.filter((_, i) => i !== index),
     }));
+  }
+
+  if (!session) {
+    return (
+      <div className="p-4">
+        <SignInEmpty description="Crear y editar rutinas requiere iniciar sesión. Las rutinas existentes se pueden consultar sin cuenta." />
+      </div>
+    );
   }
 
   if (loading) {
