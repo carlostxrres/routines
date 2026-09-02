@@ -70,7 +70,20 @@ con tests que lo comprueban contra las tablas de `docs/idea.md`.
 | `pnpm db:migrate` | Aplica las migraciones |
 | `pnpm db:studio` | Explorador de la base de datos |
 | `pnpm db:seed` | Siembra las rutinas de `docs/idea.md` (idempotente) |
+| `pnpm db:verify` | Comprueba las constraints contra una base de datos de usar y tirar |
 
 `pnpm build` falla si faltan `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY`: sin
 ellas el bundle se queda vacío y el despliegue serviría una página en blanco sin
 avisar.
+
+`pnpm db:verify` comprueba lo que vive en Postgres y no en TypeScript (la
+constraint de no solapamiento, un Round por rutina y día, una acción registrada
+como mucho una vez por Round, y qué arrastra cada borrado). Escribe filas, así
+que se niega a arrancar si la base de datos ya tiene rutinas:
+
+```
+podman run -d --rm --name pg -e POSTGRES_PASSWORD=test \
+  -e POSTGRES_DB=routines -p 55432:5432 postgres:16-alpine
+DIRECT_URL=postgresql://postgres:test@127.0.0.1:55432/routines pnpm db:migrate
+DATABASE_URL=postgresql://postgres:test@127.0.0.1:55432/routines pnpm db:verify
+```
