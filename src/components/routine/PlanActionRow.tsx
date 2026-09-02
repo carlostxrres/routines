@@ -65,7 +65,6 @@ export function PlanActionRow({
             max={1440}
             value={action.lengthMinutes}
             onChange={(event) => onLengthChange(Math.max(0, Number(event.target.value) || 0))}
-            className="w-16 text-right"
           />
           <span className="text-sm text-muted-foreground">min</span>
         </div>
