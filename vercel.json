@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/routines/:id", "destination": "/api/routines?id=:id" },
+    { "source": "/api/rounds/:id", "destination": "/api/rounds?id=:id" },
+    { "source": "/api/performed-actions/:id", "destination": "/api/performed-actions?id=:id" },
+    { "source": "/((?!api/|@)(?:[^.]*))", "destination": "/index.html" }
+  ]
+}
