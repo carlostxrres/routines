@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <rect width="48" height="48" rx="11" fill="#1a1a1a"/>
+  <!-- A routine as a stacked timeline: three completed segments and one pending. -->
+  <rect x="10" y="11" width="28" height="6" rx="3" fill="#fafafa"/>
+  <rect x="10" y="21" width="19" height="6" rx="3" fill="#fafafa"/>
+  <rect x="10" y="31" width="24" height="6" rx="3" fill="#fafafa" opacity="0.42"/>
+</svg>
