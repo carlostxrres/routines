@@ -1,14 +1,17 @@
-import type {
-  PerformedAction,
-  PlannedAction,
-  PlanWithActions,
-  RoundWithActions,
-  RoutineWithPlans,
-} from "@shared/types";
+import type { PerformedAction, RoundWithActions } from "@shared/types";
 import { instantAt, parseDate, parseInstant, parseTime, Temporal } from "@/lib/temporal";
 
 // All of this app's time arithmetic, with no React and no fetching, so it can
 // be tested directly against the tables in docs/idea.md.
+//
+// The plan-side functions take structural types rather than the wire types, so
+// the routine editor can run its in-progress draft through exactly the same
+// code that renders a saved routine.
+
+export type ActionLike = { id: string; name: string; equipment: string };
+export type PlanActionLike = { plannedActionId: string; lengthMinutes: number; position: number };
+export type PlanLike = { startTime: string | null; actions: PlanActionLike[] };
+export type PeriodLike = { periodStart: string; periodEnd: string | null };
 
 // ---------------------------------------------------------------------------
 // The plan side
@@ -30,10 +33,10 @@ export type ScheduledAction = {
 // The Plan of `routine` that covers `date`, or null if none does. The
 // plans_no_overlap constraint guarantees at most one, so the first match is
 // the answer.
-export function planForDate(
-  routine: RoutineWithPlans,
+export function planForDate<TPlan extends PeriodLike>(
+  routine: { plans: TPlan[] },
   date: Temporal.PlainDate,
-): PlanWithActions | null {
+): TPlan | null {
   const iso = date.toString();
   return (
     routine.plans.find(
@@ -43,13 +46,19 @@ export function planForDate(
 }
 
 // Every date on which `routine` has a plan is a date a Round can exist for.
-export function coversDate(routine: RoutineWithPlans, date: Temporal.PlainDate): boolean {
+export function coversDate(
+  routine: { plans: PeriodLike[] },
+  date: Temporal.PlainDate,
+): boolean {
   return planForDate(routine, date) !== null;
 }
 
 // A routine is "current" if any of its plans reaches today or beyond. The
 // /routines list hides the rest by default.
-export function isRoutineCurrent(routine: RoutineWithPlans, today: Temporal.PlainDate): boolean {
+export function isRoutineCurrent(
+  routine: { plans: PeriodLike[] },
+  today: Temporal.PlainDate,
+): boolean {
   const iso = today.toString();
   return routine.plans.some((plan) => plan.periodEnd === null || plan.periodEnd >= iso);
 }
@@ -58,8 +67,8 @@ export function isRoutineCurrent(routine: RoutineWithPlans, today: Temporal.Plai
 // plan has a start time — the clock time it is expected to begin at. This is
 // the column "Hora inicio" of the tables in docs/idea.md.
 export function plannedSchedule(
-  plan: PlanWithActions,
-  plannedActions: PlannedAction[],
+  plan: PlanLike,
+  plannedActions: ActionLike[],
 ): ScheduledAction[] {
   const byId = new Map(plannedActions.map((action) => [action.id, action]));
   const start = plan.startTime === null ? null : parseTime(plan.startTime);
