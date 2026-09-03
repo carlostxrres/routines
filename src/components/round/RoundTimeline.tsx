@@ -1,7 +1,7 @@
 import type { RoundWithActions } from "@shared/types";
 import { useMemo } from "react";
 import { Tip } from "@/components/Tip";
-import { FREE_ACTION_COLOR } from "@/lib/actionColors";
+import { FREE_ACTION_COLOR, segmentColors } from "@/lib/actionColors";
 import { currentStretchSeconds, performedSegments, type ScheduledAction } from "@/lib/schedule";
 import { formatSeconds, parseInstant, type Temporal } from "@/lib/temporal";
 
@@ -28,6 +28,7 @@ export function RoundTimeline({
   now: Temporal.Instant;
 }) {
   const segments = useMemo(() => (round ? performedSegments(round) : []), [round]);
+  const colorsBySegment = useMemo(() => segmentColors(segments, colors), [segments, colors]);
 
   const startedAt = round ? parseInstant(round.startedAt) : null;
   const performedSeconds = segments.reduce(
@@ -62,16 +63,12 @@ export function RoundTimeline({
 
       <Track label="Real">
         {startedAt &&
-          segments.map((segment) => (
+          segments.map((segment, index) => (
             <Segment
               key={segment.id}
               left={(startedAt.until(segment.startedAt).total("second") / scale) * 100}
               width={(segment.duration.total("second") / scale) * 100}
-              color={
-                segment.plannedActionId
-                  ? (colors.get(segment.plannedActionId) ?? FREE_ACTION_COLOR)
-                  : FREE_ACTION_COLOR
-              }
+              color={colorsBySegment[index]}
               tip={`${segment.name} · ${formatSeconds(segment.duration.total("second"))}`}
               label={segment.name}
             />
