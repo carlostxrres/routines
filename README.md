@@ -81,6 +81,13 @@ con tests que lo comprueban contra las tablas de `docs/idea.md`.
 | `pnpm db:seed` | Siembra las rutinas de `docs/idea.md` (idempotente) |
 | `pnpm db:verify` | Comprueba las constraints contra una base de datos de usar y tirar |
 
+`pnpm dev` sólo levanta el frontend (Vite, en el 5173): las funciones de `api/`
+son serverless de Vercel y Vite no las ejecuta, así que todo lo que pase por
+`apiClient` responde 404. `pnpm dlx vercel dev` (en el 3000) sirve las dos cosas
+a la vez y aplica los rewrites de `vercel.json`, que son los que convierten
+`/api/rounds/:id` en `/api/rounds?id=:id`. Necesita `vercel link` hecho y el
+mismo `.env`.
+
 `pnpm build` falla si faltan `VITE_SUPABASE_URL` o `VITE_SUPABASE_ANON_KEY`: sin
 ellas el bundle se queda vacío y el despliegue serviría una página en blanco sin
 avisar.
