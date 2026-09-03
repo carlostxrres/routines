@@ -160,19 +160,47 @@ export function performedSegments(round: RoundWithActions): PerformedSegment[] {
   });
 }
 
-// How long the stretch in progress has been running: from the last thing
-// recorded — or from the round's start, when nothing has been — until now. Zero
-// while there is no round yet, and zero when that origin sits in the future,
-// which "…o a otra hora" makes possible.
+// Where the stretch in progress began: the last thing recorded, or the round's
+// own start when nothing has been. This is the instant a new action would be
+// measured from, so it is also the floor for a manually typed finish time.
+export function stretchOrigin(round: RoundWithActions): Temporal.Instant {
+  const actions = orderedActions(round);
+  const last = actions[actions.length - 1];
+  return parseInstant(last ? last.endedAt : round.startedAt);
+}
+
+// A round is closed once it has been given an end. Everything that ticks —
+// the stopwatch, the hatched bar on the timeline — reads this to stop.
+export function isRoundDone(round: RoundWithActions | null): boolean {
+  return round?.endedAt != null;
+}
+
+// How long the stretch in progress has been running: from `stretchOrigin`
+// until now. Zero while there is no round yet, and zero when that origin sits
+// in the future, which "…o a otra hora" makes possible.
+//
+// A closed round has no "now": its clock stops at `endedAt`. That is what
+// keeps yesterday's round from showing a twenty-hour stopwatch — and what
+// keeps the leftover of a round abandoned mid-action visible, frozen at the
+// length it really had.
 export function currentStretchSeconds(
   round: RoundWithActions | null,
   now: Temporal.Instant,
 ): number {
   if (!round) return 0;
-  const actions = orderedActions(round);
-  const last = actions[actions.length - 1];
-  const start = parseInstant(last ? last.endedAt : round.startedAt);
-  const seconds = start.until(now).total("second");
+  const end = round.endedAt === null ? now : parseInstant(round.endedAt);
+  const seconds = stretchOrigin(round).until(end).total("second");
+  return seconds > 0 ? seconds : 0;
+}
+
+// Wall-clock length of the whole round: from its start to its end, or to now
+// while it is still running. This is what the header and the closing summary
+// show, and it is deliberately not the sum of the recorded actions — the gap
+// before the first tap belongs to the round too.
+export function roundElapsedSeconds(round: RoundWithActions | null, now: Temporal.Instant): number {
+  if (!round) return 0;
+  const end = round.endedAt === null ? now : parseInstant(round.endedAt);
+  const seconds = parseInstant(round.startedAt).until(end).total("second");
   return seconds > 0 ? seconds : 0;
 }
 

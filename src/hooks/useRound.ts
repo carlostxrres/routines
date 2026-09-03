@@ -123,28 +123,36 @@ export function useRound({ routineId, date, onCreated }: UseRoundOptions) {
     [enqueue],
   );
 
-  // The round row does not exist until the first edit. Creating it is the only
+  // The round row does not exist until it is started. Creating it is the only
   // write that can't be optimistic, since everything else needs its id.
-  const ensureRound = useCallback(async (): Promise<RoundWithActions | null> => {
-    if (state.round) return state.round;
-    if (!routineId || !date) return null;
+  //
+  // `startedAt` is a parameter rather than always `now` because the round can
+  // be started retroactively: you got up at 7:00 and only reached for the
+  // phone at 7:20.
+  const ensureRound = useCallback(
+    async (startedAt: Temporal.Instant = nowInstant()): Promise<RoundWithActions | null> => {
+      if (state.round) return state.round;
+      if (!routineId || !date) return null;
 
-    try {
-      const created = await apiClient.post<RoundWithActions>("/rounds", {
-        routineId,
-        date,
-        startedAt: serializeInstant(nowInstant()),
-        comments: "",
-      });
-      serverRef.current = created;
-      setState({ round: created, past: [], future: [] });
-      onCreated?.(created.id);
-      return created;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo crear el Round.");
-      return null;
-    }
-  }, [state.round, routineId, date, onCreated]);
+      try {
+        const created = await apiClient.post<RoundWithActions>("/rounds", {
+          routineId,
+          date,
+          startedAt: serializeInstant(startedAt),
+          endedAt: null,
+          comments: "",
+        });
+        serverRef.current = created;
+        setState({ round: created, past: [], future: [] });
+        onCreated?.(created.id);
+        return created;
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo crear el Round.");
+        return null;
+      }
+    },
+    [state.round, routineId, date, onCreated],
+  );
 
   // ---- operations --------------------------------------------------------
 
@@ -154,7 +162,9 @@ export function useRound({ routineId, date, onCreated }: UseRoundOptions) {
   const finishAction = useCallback(
     async (input: { plannedActionId: string | null; name: string; endedAt: Temporal.Instant }) => {
       const current = await ensureRound();
-      if (!current) return;
+      // A closed round records nothing: reopen it first. The page doesn't offer
+      // the button, but undo/redo can land here.
+      if (!current || current.endedAt !== null) return;
 
       const endedAt = serializeInstant(input.endedAt);
       const existing =
@@ -234,6 +244,23 @@ export function useRound({ routineId, date, onCreated }: UseRoundOptions) {
     [state.round, apply],
   );
 
+  // Closing and reopening are ordinary edits, so they undo like everything
+  // else: "Atrás" after an accidental "Terminar Round" puts it back in play.
+  const finishRound = useCallback(
+    (endedAt: Temporal.Instant) => {
+      const round = state.round;
+      if (!round) return;
+      apply(round, { ...round, endedAt: serializeInstant(endedAt) });
+    },
+    [state.round, apply],
+  );
+
+  const reopenRound = useCallback(() => {
+    const round = state.round;
+    if (!round) return;
+    apply(round, { ...round, endedAt: null });
+  }, [state.round, apply]);
+
   // ---- undo / redo -------------------------------------------------------
   //
   // Restoring a snapshot goes through the same reconcile() as any other edit,
@@ -261,12 +288,15 @@ export function useRound({ routineId, date, onCreated }: UseRoundOptions) {
     round: state.round,
     loading,
     saving: pending > 0,
+    start: ensureRound,
     finishAction,
     updateAction,
     removeAction,
     clearActions,
     setComments,
     setStartedAt,
+    finishRound,
+    reopenRound,
     undo,
     redo,
     canUndo: state.past.length > 0,
@@ -314,10 +344,15 @@ async function reconcile(
     }
   }
 
-  if (base?.comments !== target.comments || base?.startedAt !== target.startedAt) {
+  if (
+    base?.comments !== target.comments ||
+    base?.startedAt !== target.startedAt ||
+    base?.endedAt !== target.endedAt
+  ) {
     await apiClient.patch(`/rounds/${target.id}`, {
       comments: target.comments,
       startedAt: target.startedAt,
+      endedAt: target.endedAt,
     });
   }
 

@@ -25,6 +25,10 @@ export const rounds = pgTable(
     // The clock start of the round. Every action's duration is measured from
     // here forward, so it is set when the round is created and stays editable.
     startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }).notNull(),
+    // When the round was called done. Null while it is still running: this is
+    // what separates a live round from a closed one, and what stops the
+    // recording page's stopwatch from counting a finished round forever.
+    endedAt: timestamp("ended_at", { withTimezone: true, mode: "string" }),
     comments: text("comments").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
       .defaultNow()

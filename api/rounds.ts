@@ -54,12 +54,14 @@ async function create(req: VercelRequest, res: VercelResponse) {
       routineId: input.routineId,
       date: input.date,
       startedAt: input.startedAt,
+      endedAt: input.endedAt,
       comments: input.comments,
     })
     .onConflictDoUpdate({
       target: [rounds.routineId, rounds.date],
-      // Deliberately does not touch startedAt or comments: the existing round
-      // is the source of truth, this only marks that it was touched again.
+      // Deliberately does not touch startedAt, endedAt or comments: the
+      // existing round is the source of truth, this only marks that it was
+      // touched again.
       set: { updatedAt: sql`now()` },
     })
     .returning();

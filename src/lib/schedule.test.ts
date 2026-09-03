@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import { AFTER_WORK_ACTIONS, buildRoutine, MORNING_ROUTINE } from "@/lib/__fixtures__/routines";
 import {
   currentStretchSeconds,
+  isRoundDone,
   isRoutineCurrent,
   nextPlannedAction,
   performedSegments,
   planForDate,
   plannedSchedule,
   plannedTotalSeconds,
+  roundElapsedSeconds,
   secondsByPlannedAction,
   summarizeRound,
 } from "@/lib/schedule";
@@ -148,12 +150,13 @@ function performed(
   };
 }
 
-function buildRound(actions: PerformedAction[]): RoundWithActions {
+function buildRound(actions: PerformedAction[], endedAt: string | null = null): RoundWithActions {
   return {
     id: "round-1",
     routineId: "routine-1",
     date: "2026-09-02",
     startedAt: ROUND_START,
+    endedAt,
     comments: "",
     createdAt: ROUND_START,
     updatedAt: ROUND_START,
@@ -241,6 +244,46 @@ describe("currentStretchSeconds", () => {
   it("is zero when the last thing recorded was marked at a time still to come", () => {
     const round = buildRound([performed(0, "2026-09-02T05:30:00.000Z")]);
     expect(currentStretchSeconds(round, at("2026-09-02T05:10:00.000Z"))).toBe(0);
+  });
+
+  // Without this, opening yesterday's round from the history showed a
+  // stopwatch counting the hours since it was recorded, and the timeline drew
+  // an "in progress" bar long enough to squash both tracks flat.
+  it("stops at the round's end however long ago that was", () => {
+    const round = buildRound(
+      [performed(0, "2026-09-02T05:06:00.000Z")],
+      "2026-09-02T05:06:00.000Z",
+    );
+    expect(currentStretchSeconds(round, at("2026-09-03T09:00:00.000Z"))).toBe(0);
+  });
+
+  it("keeps the leftover of a round closed mid-action, frozen at its real length", () => {
+    const round = buildRound(
+      [performed(0, "2026-09-02T05:06:00.000Z")],
+      "2026-09-02T05:11:00.000Z",
+    );
+    expect(currentStretchSeconds(round, at("2026-09-03T09:00:00.000Z"))).toBe(5 * 60);
+  });
+});
+
+describe("roundElapsedSeconds", () => {
+  const at = (iso: string) => Temporal.Instant.from(iso);
+
+  it("runs from the round's start to now while it is open", () => {
+    expect(roundElapsedSeconds(buildRound([]), at("2026-09-02T05:20:00.000Z"))).toBe(20 * 60);
+  });
+
+  it("runs from the round's start to its end once it is closed", () => {
+    const round = buildRound([], "2026-09-02T06:15:00.000Z");
+    expect(roundElapsedSeconds(round, at("2026-09-03T09:00:00.000Z"))).toBe(75 * 60);
+  });
+});
+
+describe("isRoundDone", () => {
+  it("separates a round still in play from one that has been closed", () => {
+    expect(isRoundDone(null)).toBe(false);
+    expect(isRoundDone(buildRound([]))).toBe(false);
+    expect(isRoundDone(buildRound([], "2026-09-02T06:15:00.000Z"))).toBe(true);
   });
 });
 

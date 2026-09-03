@@ -19,7 +19,7 @@ Qué resuelve (de `docs/idea.md`):
 | **Routine** | Un propósito ("Mañanas"). Agrupa todos los planes que ha tenido. |
 | **Plan** | Cómo era esa rutina en un periodo: hora de inicio y lista ordenada de acciones con su duración. Dos planes de una misma rutina nunca se solapan. |
 | **PlannedAction** | Una acción de la rutina ("Ducha"). Su id es lo que une un Round de marzo con uno de octubre en los gráficos. |
-| **Round** | Lo registrado un día concreto para una rutina. Como mucho uno por rutina y día, así que la fecha decide el plan. |
+| **Round** | Lo registrado un día concreto para una rutina. Como mucho uno por rutina y día, así que la fecha decide el plan. Tiene principio y fin explícitos: se abre con «Empezar» y se cierra con «Terminar el Round», y hasta que se cierra sigue en curso. |
 | **PerformedAction** | Un paso registrado. Solo guarda **cuándo terminó**: las duraciones se derivan encadenando esos instantes desde el inicio del Round. |
 
 ## Stack

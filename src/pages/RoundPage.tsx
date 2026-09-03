@@ -1,5 +1,17 @@
-import type { RoutineWithPlans } from "@shared/types";
-import { CalendarX, Check, Eraser, Loader2, MoreVertical, Redo2, Undo2 } from "lucide-react";
+import type { RoundWithActions, RoutineWithPlans } from "@shared/types";
+import {
+  CalendarX,
+  Check,
+  CircleCheckBig,
+  Eraser,
+  Flag,
+  Loader2,
+  MoreVertical,
+  Play,
+  Redo2,
+  RotateCcw,
+  Undo2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { DatePicker } from "@/components/DatePicker";
@@ -7,6 +19,7 @@ import { Field } from "@/components/forms/Field";
 import { PageHeader } from "@/components/PageHeader";
 import { type ActionChoice, CurrentActionCombobox } from "@/components/round/CurrentActionCombobox";
 import { CurrentActionTimer } from "@/components/round/CurrentActionTimer";
+import { PerformedActionList } from "@/components/round/PerformedActionList";
 import { RoundTimeline } from "@/components/round/RoundTimeline";
 import { SignInEmpty } from "@/components/SignInEmpty";
 import { Button } from "@/components/ui/button";
@@ -47,9 +60,12 @@ import { actionColorMap } from "@/lib/actionColors";
 import { apiClient } from "@/lib/api-client";
 import {
   coversDate,
+  isRoundDone,
   nextPlannedAction,
   planForDate,
   plannedSchedule,
+  roundElapsedSeconds,
+  stretchOrigin,
   summarizeRound,
 } from "@/lib/schedule";
 import {
@@ -62,8 +78,20 @@ import {
   parseDate,
   parseInstant,
   parseTime,
+  Temporal,
   today,
 } from "@/lib/temporal";
+
+// A round has three phases, and the big button says which one you are in:
+//
+//   idle     no round row yet          → "Empezar"
+//   running  started, not closed       → "Terminar acción"
+//   done     closed (`endedAt` set)    → the closing card, no button at all
+//
+// The start matters as much as the end: the row used to be created by the
+// first "Terminar acción", which stamped `startedAt` and the first action's
+// `endedAt` in the same instant and so recorded every first step as lasting
+// zero seconds.
 
 export function RoundPage() {
   const { id } = useParams<{ id?: string }>();
@@ -77,8 +105,11 @@ export function RoundPage() {
 
   const [date, setDate] = useState(() => today());
   const [routineId, setRoutineId] = useState<string | null>(null);
-  const [choice, setChoice] = useState<ActionChoice | null>(null);
+  // Only what the user picked *instead of* what the plan proposes. Null means
+  // "follow the plan", which is where every tap leaves it — see `choice`.
+  const [override, setOverride] = useState<ActionChoice | null>(null);
   const [manualTime, setManualTime] = useState("");
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const round = useRound({
     routineId,
@@ -142,18 +173,28 @@ export function RoundPage() {
   );
 
   // "Acción actual" follows the plan on its own; the user only touches it to
-  // record something unplanned or to correct a step.
+  // record something unplanned or to correct a step, and every tap hands it
+  // back to the plan. Deriving it instead of mirroring it into state is what
+  // stops a free action from staying in the box after being recorded — the
+  // plan's next step is only ever one `setOverride(null)` away.
   const suggested = useMemo(
     () => nextPlannedAction(schedule, round.round),
     [schedule, round.round],
   );
-  useEffect(() => {
-    setChoice(
-      suggested ? { plannedActionId: suggested.plannedActionId, name: suggested.name } : null,
-    );
-  }, [suggested]);
+  const choice = useMemo<ActionChoice | null>(
+    () =>
+      override ??
+      (suggested ? { plannedActionId: suggested.plannedActionId, name: suggested.name } : null),
+    [override, suggested],
+  );
 
   const summary = round.round ? summarizeRound(round.round, schedule) : null;
+  const finished = isRoundDone(round.round);
+  const canRecord = Boolean(choice?.name.trim());
+  // The plan is exhausted and nothing has been typed in its place: the only
+  // thing left to do is close the round. This is exactly where the button used
+  // to grey out with no explanation.
+  const readyToClose = round.round !== null && !finished && suggested === null && !canRecord;
 
   // What the timer needs: how long the chosen action should take, and what
   // comes after it. A free action isn't in the schedule, so `current` is -1 and
@@ -175,14 +216,62 @@ export function RoundPage() {
       name: choice.name.trim(),
       endedAt,
     });
+    // Hand the box back to the plan, whatever was in it.
+    setOverride(null);
     setManualTime("");
+    setManualError(null);
+  }
+
+  // A time typed as HH:MM, on the round's own day. Null when it isn't a time
+  // yet or when it hasn't happened.
+  function manualInstant(value: string): Temporal.Instant | null {
+    if (!/^\d{2}:\d{2}$/.test(value)) {
+      setManualError("Escribe una hora como 07:32.");
+      return null;
+    }
+    const instant = instantAt(date, parseTime(value), getTimeZone());
+    if (Temporal.Instant.compare(instant, nowInstant()) > 0) {
+      setManualError("Esa hora todavía no ha llegado.");
+      return null;
+    }
+    return instant;
+  }
+
+  // Starting late: you got up at 7:00 and only reached for the phone at 7:20.
+  function startAt(value: string) {
+    const instant = manualInstant(value);
+    if (!instant) return;
+    setManualError(null);
+    setManualTime("");
+    round.start(instant);
   }
 
   // "Terminar acción" at a time other than now — for when you remember two
-  // steps later that you finished breakfast at 7:45.
+  // steps later that you finished breakfast at 7:45. Anything at or before the
+  // start of the current stretch would give the step a zero or negative
+  // length, which used to be accepted in silence.
   function finishAt(value: string) {
-    if (!/^\d{2}:\d{2}$/.test(value)) return;
-    finish(instantAt(date, parseTime(value), getTimeZone()));
+    if (!round.round) return;
+    const instant = manualInstant(value);
+    if (!instant) return;
+    const origin = stretchOrigin(round.round);
+    if (Temporal.Instant.compare(instant, origin) <= 0) {
+      setManualError(`Este tramo empezó a las ${formatClock(origin)}: tiene que ser posterior.`);
+      return;
+    }
+    finish(instant);
+  }
+
+  // Closing the round. When the plan has been recorded to the end, the round
+  // really ended at that last tap — the minutes spent writing the comments
+  // afterwards are not part of it. Closing early (a routine abandoned halfway,
+  // from the menu) ends it now.
+  function finishRound() {
+    const current = round.round;
+    if (!current) return;
+    const endedAt =
+      suggested === null && current.actions.length > 0 ? stretchOrigin(current) : nowInstant();
+    round.finishRound(endedAt);
   }
 
   async function handleClear() {
@@ -206,11 +295,7 @@ export function RoundPage() {
     <div className="flex flex-col gap-4 p-4">
       <PageHeader
         title="Registrar"
-        description={
-          round.round
-            ? `Empezado a las ${formatClock(parseInstant(round.round.startedAt))}`
-            : "Marca cada acción según la terminas."
-        }
+        description={describeRound(round.round, now)}
         action={
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -224,7 +309,19 @@ export function RoundPage() {
                   Guardar y empezar otro
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem disabled>Aún sin crear</DropdownMenuItem>
+                <DropdownMenuItem disabled>Aún sin empezar</DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              {finished ? (
+                <DropdownMenuItem onClick={round.reopenRound}>
+                  <RotateCcw />
+                  Reabrir el Round
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem disabled={!round.round} onClick={finishRound}>
+                  <Flag />
+                  Terminar el Round
+                </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem disabled={!round.canUndo} onClick={round.undo}>
@@ -318,79 +415,98 @@ export function RoundPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="flex flex-col gap-3">
-              <Field label="Acción actual" htmlFor="current-action">
-                <CurrentActionCombobox
-                  schedule={schedule}
-                  doneIds={doneIds}
-                  value={choice}
-                  onChange={setChoice}
-                />
-              </Field>
-
-              <CurrentActionTimer
-                round={round.round}
-                expected={schedule[current]?.length ?? null}
-                next={nextAction}
-                now={now}
-              />
-
-              {/* The only control that matters mid-routine: one thumb, one tap. */}
-              <Button
-                className="h-20 text-lg"
-                disabled={!choice?.name.trim()}
-                onClick={() => finish()}
-              >
-                Terminar acción
-              </Button>
-
-              <div className="flex items-end gap-2">
-                <Field label="…o a otra hora:" htmlFor="manual-time">
-                  <Input
-                    id="manual-time"
-                    type="time"
-                    value={manualTime}
-                    onChange={(event) => setManualTime(event.target.value)}
+          {finished ? (
+            <RoundDoneCard
+              recorded={summary?.segments.length ?? 0}
+              planned={schedule.length}
+              deviationSeconds={summary?.deviationSeconds ?? 0}
+              elapsedSeconds={roundElapsedSeconds(round.round, now)}
+              onReopen={round.reopenRound}
+            />
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col gap-3">
+                <Field label="Acción actual" htmlFor="current-action">
+                  <CurrentActionCombobox
+                    schedule={schedule}
+                    doneIds={doneIds}
+                    value={choice}
+                    onChange={setOverride}
                   />
                 </Field>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  disabled={!manualTime || !choice?.name.trim()}
-                  onClick={() => finishAt(manualTime)}
-                >
-                  Marcar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+
+                <CurrentActionTimer
+                  round={round.round}
+                  expected={schedule[current]?.length ?? null}
+                  next={nextAction}
+                  now={now}
+                />
+
+                {/* The only control that matters mid-routine: one thumb, one
+                    tap. It never goes dead — it always names the next thing
+                    there is to do, including closing the round. */}
+                {round.round === null ? (
+                  <Button className="h-20 text-lg" onClick={() => round.start()}>
+                    <Play />
+                    Empezar ahora
+                  </Button>
+                ) : readyToClose ? (
+                  <Button className="h-20 text-lg" onClick={finishRound}>
+                    <Flag />
+                    Terminar el Round
+                  </Button>
+                ) : (
+                  <Button className="h-20 text-lg" disabled={!canRecord} onClick={() => finish()}>
+                    Terminar acción
+                  </Button>
+                )}
+
+                {!readyToClose && (
+                  <div className="flex items-end gap-2">
+                    <div className="min-w-0 flex-1">
+                      <Field
+                        label={round.round === null ? "…o empecé a las:" : "…o la terminé a las:"}
+                        htmlFor="manual-time"
+                        error={manualError ?? undefined}
+                      >
+                        <Input
+                          id="manual-time"
+                          type="time"
+                          value={manualTime}
+                          onChange={(event) => {
+                            setManualTime(event.target.value);
+                            setManualError(null);
+                          }}
+                        />
+                      </Field>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      disabled={!manualTime || (round.round !== null && !canRecord)}
+                      onClick={() =>
+                        round.round === null ? startAt(manualTime) : finishAt(manualTime)
+                      }
+                    >
+                      {round.round === null ? "Empezar" : "Marcar"}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {summary && summary.segments.length > 0 && (
             <Card>
               <CardContent className="flex flex-col gap-2">
                 <span className="text-sm font-medium">Registrado</span>
-                <ul className="flex flex-col gap-1 text-sm">
-                  {summary.segments.map((segment) => (
-                    <li key={segment.id} className="flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          className="size-2.5 shrink-0 rounded-full"
-                          style={{
-                            backgroundColor: segment.plannedActionId
-                              ? colors.get(segment.plannedActionId)
-                              : "var(--muted-foreground)",
-                          }}
-                        />
-                        <span className="truncate">{segment.name}</span>
-                      </span>
-                      <span className="shrink-0 tabular-nums text-muted-foreground">
-                        {formatClock(segment.endedAt)} ·{" "}
-                        {formatSeconds(Math.round(segment.duration.total("second")))}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <PerformedActionList
+                  segments={summary.segments}
+                  date={date}
+                  colors={colors}
+                  onUpdate={round.updateAction}
+                  onRemove={round.removeAction}
+                />
               </CardContent>
             </Card>
           )}
@@ -399,6 +515,55 @@ export function RoundPage() {
 
       {dialog}
     </div>
+  );
+}
+
+// The header's one line of status, which is also the only place the round's
+// start and end are shown as clock times.
+function describeRound(round: RoundWithActions | null, now: Temporal.Instant): string {
+  if (!round) return "Marca cada acción según la terminas.";
+  const started = formatClock(parseInstant(round.startedAt));
+  if (round.endedAt === null) return `Empezado a las ${started}`;
+  const ended = formatClock(parseInstant(round.endedAt));
+  const total = formatSeconds(Math.round(roundElapsedSeconds(round, now)));
+  return `${started} – ${ended} · ${total}`;
+}
+
+function RoundDoneCard({
+  recorded,
+  planned,
+  deviationSeconds,
+  elapsedSeconds,
+  onReopen,
+}: {
+  recorded: number;
+  planned: number;
+  deviationSeconds: number;
+  elapsedSeconds: number;
+  onReopen: () => void;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-center gap-3 text-center">
+        <CircleCheckBig className="size-8 text-muted-foreground" />
+        <div className="flex flex-col gap-1">
+          <p className="font-medium">Round terminado</p>
+          <p className="text-sm text-muted-foreground">
+            {recorded} de {planned} acciones · {formatSeconds(Math.round(elapsedSeconds))} ·{" "}
+            {formatDeviation(Math.round(deviationSeconds))} frente al plan
+          </p>
+        </div>
+        {/* Both ways out, at the moment they're actually wanted: this used to
+            live in the ⋮ menu, where nobody looks once they've finished. */}
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button variant="outline" onClick={onReopen}>
+            <RotateCcw />
+            Reabrir
+          </Button>
+          <Button render={<Link to="/rounds/new" />}>Empezar otro</Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

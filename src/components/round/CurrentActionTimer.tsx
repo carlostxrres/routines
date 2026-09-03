@@ -24,8 +24,8 @@ export function CurrentActionTimer({
   next: ScheduledAction | null;
   now: Temporal.Instant;
 }) {
-  // The round row is only created by the first "Terminar acción", so until then
-  // there is no instant to count from.
+  // The round row is only created by "Empezar", so until then there is no
+  // instant to count from.
   const started = round !== null;
   const elapsed = currentStretchSeconds(round, now);
   // A zero-length step ("Salir de casa", "Llegar a casa") is a marker rather
@@ -81,9 +81,7 @@ export function CurrentActionTimer({
       {/* Full width rather than under the clock: two columns of prose on a
           phone is mush. */}
       {!started && (
-        <p className="text-xs text-muted-foreground">
-          El cronómetro arranca al marcar la primera acción.
-        </p>
+        <p className="text-xs text-muted-foreground">El cronómetro arranca al pulsar Empezar.</p>
       )}
     </div>
   );
