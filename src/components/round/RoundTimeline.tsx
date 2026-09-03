@@ -2,7 +2,7 @@ import type { RoundWithActions } from "@shared/types";
 import { useMemo } from "react";
 import { Tip } from "@/components/Tip";
 import { FREE_ACTION_COLOR } from "@/lib/actionColors";
-import { performedSegments, type ScheduledAction } from "@/lib/schedule";
+import { currentStretchSeconds, performedSegments, type ScheduledAction } from "@/lib/schedule";
 import { formatSeconds, parseInstant, type Temporal } from "@/lib/temporal";
 
 // Plan on top, what actually happened underneath, both on the same axis:
@@ -36,11 +36,7 @@ export function RoundTimeline({
   );
 
   // The action in progress: from the last thing finished to right now.
-  const lastEnd = segments[segments.length - 1]?.endedAt ?? startedAt;
-  const inProgressSeconds =
-    lastEnd && now.epochMilliseconds > lastEnd.epochMilliseconds
-      ? lastEnd.until(now).total("second")
-      : 0;
+  const inProgressSeconds = currentStretchSeconds(round, now);
 
   const plannedSeconds = schedule.reduce(
     (total, action) => total + action.length.total("second"),

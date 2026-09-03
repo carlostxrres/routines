@@ -2,6 +2,7 @@ import type { PerformedAction, RoundWithActions } from "@shared/types";
 import { describe, expect, it } from "vitest";
 import { AFTER_WORK_ACTIONS, buildRoutine, MORNING_ROUTINE } from "@/lib/__fixtures__/routines";
 import {
+  currentStretchSeconds,
   isRoutineCurrent,
   nextPlannedAction,
   performedSegments,
@@ -215,6 +216,31 @@ describe("performedSegments", () => {
     expect(segments[1].plannedActionId).toBeNull();
     expect(segments[1].duration.total("minute")).toBe(5);
     expect(secondsByPlannedAction(round).size).toBe(1);
+  });
+});
+
+describe("currentStretchSeconds", () => {
+  const at = (iso: string) => Temporal.Instant.from(iso);
+
+  it("is zero while there is no round to count from", () => {
+    expect(currentStretchSeconds(null, at("2026-09-02T05:04:00.000Z"))).toBe(0);
+  });
+
+  it("counts from the round's start while nothing has been recorded", () => {
+    expect(currentStretchSeconds(buildRound([]), at("2026-09-02T05:04:00.000Z"))).toBe(4 * 60);
+  });
+
+  it("counts from the last thing recorded, not from the round's start", () => {
+    const round = buildRound([
+      performed(0, "2026-09-02T05:06:00.000Z"),
+      performed(1, "2026-09-02T05:18:00.000Z"),
+    ]);
+    expect(currentStretchSeconds(round, at("2026-09-02T05:21:30.000Z"))).toBe(210);
+  });
+
+  it("is zero when the last thing recorded was marked at a time still to come", () => {
+    const round = buildRound([performed(0, "2026-09-02T05:30:00.000Z")]);
+    expect(currentStretchSeconds(round, at("2026-09-02T05:10:00.000Z"))).toBe(0);
   });
 });
 

@@ -160,6 +160,22 @@ export function performedSegments(round: RoundWithActions): PerformedSegment[] {
   });
 }
 
+// How long the stretch in progress has been running: from the last thing
+// recorded — or from the round's start, when nothing has been — until now. Zero
+// while there is no round yet, and zero when that origin sits in the future,
+// which "…o a otra hora" makes possible.
+export function currentStretchSeconds(
+  round: RoundWithActions | null,
+  now: Temporal.Instant,
+): number {
+  if (!round) return 0;
+  const actions = orderedActions(round);
+  const last = actions[actions.length - 1];
+  const start = parseInstant(last ? last.endedAt : round.startedAt);
+  const seconds = start.until(now).total("second");
+  return seconds > 0 ? seconds : 0;
+}
+
 // The action the user is presumed to be doing right now: the first one in the
 // plan that hasn't been recorded yet. This is what "Acción actual" defaults to,
 // and it is what makes the happy path a single repeated tap.
