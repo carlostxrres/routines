@@ -142,6 +142,18 @@ export function formatSeconds(totalSeconds: number): string {
   return `${sign}${seconds}s`;
 }
 
+// "07:12" / "1:07:12" — a stopwatch, where the seconds are always the point.
+// `formatSeconds` hides them as soon as there is a minute, which is exactly
+// backwards for a number that ticks in front of you.
+export function formatStopwatch(totalSeconds: number): string {
+  const abs = Math.floor(Math.abs(totalSeconds));
+  const hours = Math.floor(abs / 3600);
+  const minutes = Math.floor((abs % 3600) / 60);
+  const seconds = abs % 60;
+  const clock = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return `${totalSeconds < 0 ? "-" : ""}${hours > 0 ? `${hours}:` : ""}${clock}`;
+}
+
 // "+3m" / "-1m" / "en punto" — a round's deviation from its plan.
 export function formatDeviation(totalSeconds: number): string {
   if (Math.abs(totalSeconds) < 30) return "en punto";
