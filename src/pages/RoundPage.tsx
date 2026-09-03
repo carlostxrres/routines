@@ -427,20 +427,35 @@ export function RoundPage() {
             <Card>
               <CardContent className="flex flex-col gap-3">
                 <Field label="Acción actual" htmlFor="current-action">
-                  <CurrentActionCombobox
-                    schedule={schedule}
-                    doneIds={doneIds}
-                    value={choice}
-                    onChange={setOverride}
-                  />
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <CurrentActionCombobox
+                        schedule={schedule}
+                        doneIds={doneIds}
+                        value={choice}
+                        onChange={setOverride}
+                      />
+                    </div>
+                    <CurrentActionTimer
+                      round={round.round}
+                      expected={schedule[current]?.length ?? null}
+                      now={now}
+                    />
+                  </div>
                 </Field>
 
-                <CurrentActionTimer
-                  round={round.round}
-                  expected={schedule[current]?.length ?? null}
-                  next={nextAction}
-                  now={now}
-                />
+                {/* min-w-0 not needed here: this now has the row to itself, so
+                    two lines before ellipsis is all the wrapping it needs —
+                    the useful half of "Preparar bocadillo y ensalada" is the
+                    half `truncate` would eat. */}
+                <p className="line-clamp-2 text-xs text-muted-foreground">
+                  {nextAction ? <>Siguiente: {nextAction.name}</> : "Última acción del plan."}
+                </p>
+                {round.round === null && (
+                  <p className="text-xs text-muted-foreground">
+                    El cronómetro arranca al pulsar Empezar.
+                  </p>
+                )}
 
                 {/* The only control that matters mid-routine: one thumb, one
                     tap. It never goes dead — it always names the next thing
