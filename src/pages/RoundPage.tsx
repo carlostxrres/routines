@@ -6,6 +6,7 @@ import { DatePicker } from "@/components/DatePicker";
 import { Field } from "@/components/forms/Field";
 import { PageHeader } from "@/components/PageHeader";
 import { type ActionChoice, CurrentActionCombobox } from "@/components/round/CurrentActionCombobox";
+import { CurrentActionTimer } from "@/components/round/CurrentActionTimer";
 import { RoundTimeline } from "@/components/round/RoundTimeline";
 import { SignInEmpty } from "@/components/SignInEmpty";
 import { Button } from "@/components/ui/button";
@@ -153,6 +154,19 @@ export function RoundPage() {
   }, [suggested]);
 
   const summary = round.round ? summarizeRound(round.round, schedule) : null;
+
+  // What the timer needs: how long the chosen action should take, and what
+  // comes after it. A free action isn't in the schedule, so `current` is -1 and
+  // there is nothing to compare against — but the plan's first unrecorded step
+  // is still what you'll go back to, so that's what "Siguiente" shows.
+  const current = schedule.findIndex(
+    (action) => action.plannedActionId === choice?.plannedActionId,
+  );
+  const nextAction =
+    current === -1
+      ? suggested
+      : (schedule.slice(current + 1).find((action) => !doneIds.has(action.plannedActionId)) ??
+        null);
 
   function finish(endedAt = nowInstant()) {
     if (!choice?.name.trim()) return;
@@ -315,6 +329,13 @@ export function RoundPage() {
                 />
               </Field>
 
+              <CurrentActionTimer
+                round={round.round}
+                expected={schedule[current]?.length ?? null}
+                next={nextAction}
+                now={now}
+              />
+
               {/* The only control that matters mid-routine: one thumb, one tap. */}
               <Button
                 className="h-20 text-lg"
@@ -325,7 +346,7 @@ export function RoundPage() {
               </Button>
 
               <div className="flex items-end gap-2">
-                <Field label="…o a otra hora" htmlFor="manual-time">
+                <Field label="…o a otra hora:" htmlFor="manual-time">
                   <Input
                     id="manual-time"
                     type="time"

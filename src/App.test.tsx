@@ -123,6 +123,17 @@ describe("the recording page", () => {
     });
   });
 
+  it("shows the current action's stopwatch stopped until the round exists", async () => {
+    await renderApp("/rounds/new");
+    await screen.findByDisplayValue("Levantarse");
+
+    // No round row yet, so there is no instant to count from — but the plan
+    // already knows how long "Levantarse" should take and what follows it.
+    expect(screen.getByText("--:--")).toBeDefined();
+    expect(screen.getByText("de 05:00")).toBeDefined();
+    expect(screen.getByText("Siguiente: Ducha")).toBeDefined();
+  });
+
   it("invites a sign-in instead of redirecting when there is no session", async () => {
     const { supabase } = await import("@/lib/supabase");
     vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({ data: { session: null } } as never);
