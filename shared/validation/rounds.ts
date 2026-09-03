@@ -7,6 +7,9 @@ export const roundInputSchema = z.object({
   // Where the clock starts for this round. Every action's duration is measured
   // forward from here, so it is stored explicitly and stays editable.
   startedAt: instantString,
+  // Null while the round is running. Nullable rather than optional so a PATCH
+  // can reopen a closed round by sending it explicitly.
+  endedAt: instantString.nullable().default(null),
   comments: noteText.default(""),
 });
 

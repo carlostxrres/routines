@@ -80,37 +80,50 @@ async function renderApp(path: string) {
   return render(<App />);
 }
 
+// A round row as the API returns it, with whatever actions the test needs.
+function buildRound(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "round-1",
+    routineId: routine.id,
+    date: today,
+    startedAt: `${today}T05:00:00.000Z`,
+    endedAt: null,
+    comments: "",
+    createdAt: `${today}T05:00:00.000Z`,
+    updatedAt: `${today}T05:00:00.000Z`,
+    actions: [],
+    ...overrides,
+  };
+}
+
 describe("the recording page", () => {
-  it("proposes the first action of the plan and records it with one tap", async () => {
+  it("starts the round explicitly, then records the first action with one tap", async () => {
     await renderApp("/rounds/new");
 
     // The routine covering today is selected without the user choosing it, and
     // "Acción actual" is already the plan's first step.
     expect(await screen.findByDisplayValue("Levantarse")).toBeDefined();
 
-    const created = {
-      id: "round-1",
-      routineId: routine.id,
-      date: today,
-      startedAt: `${today}T05:00:00.000Z`,
-      comments: "",
-      createdAt: `${today}T05:00:00.000Z`,
-      updatedAt: `${today}T05:00:00.000Z`,
-      actions: [],
-    };
+    const created = buildRound();
     post.mockResolvedValueOnce(created);
     post.mockResolvedValue({});
     get.mockImplementation((path: string) =>
       path.startsWith("/rounds/round-1") ? Promise.resolve(created) : defaultGet(path),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Terminar acción" }));
+    // "Empezar" is its own tap: it creates the row and stamps startedAt, so
+    // the first action has a stretch to be measured over instead of ending in
+    // the same instant it began.
+    fireEvent.click(screen.getByRole("button", { name: "Empezar ahora" }));
 
-    // The round row is created by the first edit...
     await waitFor(() => {
       expect(post).toHaveBeenCalledWith("/rounds", expect.objectContaining({ date: today }));
     });
-    // ...and the tap itself is one small write.
+    expect(post).not.toHaveBeenCalledWith("/performed-actions", expect.anything());
+
+    // Only now does the big button become the one you tap all the way down.
+    fireEvent.click(await screen.findByRole("button", { name: "Terminar acción" }));
+
     await waitFor(() => {
       expect(post).toHaveBeenCalledWith(
         "/performed-actions",
@@ -132,6 +145,65 @@ describe("the recording page", () => {
     expect(screen.getByText("--:--")).toBeDefined();
     expect(screen.getByText("de 05:00")).toBeDefined();
     expect(screen.getByText("Siguiente: Ducha")).toBeDefined();
+  });
+
+  it("offers to close the round once the plan has been recorded to the end", async () => {
+    // Every planned action already recorded: there is nothing left to tap, and
+    // this is exactly where the button used to grey out with no explanation.
+    const endedAt = `${today}T06:30:00.000Z`;
+    const last = routine.plannedActions.length - 1;
+    const actions = routine.plannedActions.map((action, index) => ({
+      id: `performed-${index}`,
+      roundId: "round-1",
+      plannedActionId: action.id,
+      name: action.name,
+      // The last step is the one the round really ended on.
+      endedAt:
+        index === last ? endedAt : `${today}T05:${String(index + 5).padStart(2, "0")}:00.000Z`,
+      comments: "",
+      createdAt: `${today}T05:00:00.000Z`,
+    }));
+    const closed = buildRound({ actions });
+
+    get.mockImplementation((path: string) =>
+      path.startsWith("/rounds/round-1")
+        ? Promise.resolve(closed)
+        : path.startsWith("/rounds")
+          ? Promise.resolve([closed])
+          : defaultGet(path),
+    );
+    patch.mockResolvedValue({});
+
+    await renderApp("/rounds/round-1");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Terminar el Round" }));
+
+    // The round ended when the last step was marked, not when the button was
+    // eventually pressed.
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledWith(
+        "/rounds/round-1",
+        expect.objectContaining({ endedAt: Temporal.Instant.from(endedAt).toString() }),
+      );
+    });
+  });
+
+  it("freezes a closed round instead of counting the hours since it ended", async () => {
+    const closed = buildRound({ endedAt: `${today}T05:40:00.000Z` });
+    get.mockImplementation((path: string) =>
+      path.startsWith("/rounds/round-1")
+        ? Promise.resolve(closed)
+        : path.startsWith("/rounds")
+          ? Promise.resolve([closed])
+          : defaultGet(path),
+    );
+
+    await renderApp("/rounds/round-1");
+
+    // The closing card replaces the recording controls entirely.
+    expect(await screen.findByText("Round terminado")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Terminar acción" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Reabrir" })).toBeDefined();
   });
 
   it("invites a sign-in instead of redirecting when there is no session", async () => {
