@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Zap } from "lucide-react";
 import { useMemo } from "react";
 import {
   Combobox,
@@ -60,6 +60,7 @@ export function CurrentActionCombobox({
 
   return (
     <Combobox
+      showItemIndicator={false}
       items={items}
       value={value}
       inputValue={value?.name ?? ""}
@@ -107,6 +108,9 @@ export function CurrentActionCombobox({
                       {action.equipment && ` · ${action.equipment}`}
                     </span>
                   </div>
+                  {action.plannedActionId === value?.plannedActionId && (
+                    <Zap className="size-4 shrink-0 text-muted-foreground" />
+                  )}
                   {done && <Check className="size-4 shrink-0 text-muted-foreground" />}
                 </ComboboxItem>
               );
