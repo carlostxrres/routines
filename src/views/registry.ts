@@ -1,4 +1,4 @@
-import { CalendarDays, ChartLine } from "lucide-react";
+import { CalendarDays, ChartLine, GitCompareArrows } from "lucide-react";
 import { type ComponentType, lazy } from "react";
 import type { ViewProps } from "@/views/types";
 
@@ -9,6 +9,9 @@ const ActionsView = lazy(() =>
   import("@/views/actions/ActionsView").then((m) => ({ default: m.ActionsView })),
 );
 const WeekView = lazy(() => import("@/views/week/WeekView").then((m) => ({ default: m.WeekView })));
+const DriftsView = lazy(() =>
+  import("@/views/drifts/DriftsView").then((m) => ({ default: m.DriftsView })),
+);
 
 export type ViewDefinition = {
   slug: string;
@@ -32,6 +35,13 @@ export const VIEWS: ViewDefinition[] = [
     description: "Dónde cae la rutina dentro del día.",
     icon: CalendarDays,
     component: WeekView,
+  },
+  {
+    slug: "drifts",
+    name: "Desvíos",
+    description: "Plan contra realidad, día a día.",
+    icon: GitCompareArrows,
+    component: DriftsView,
   },
 ];
 

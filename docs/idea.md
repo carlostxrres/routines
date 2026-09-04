@@ -218,6 +218,16 @@ Gráfico de línea. Cada línea es una PlannedAction. Muestra cuántos segundos 
 
 Igual que /view/week en HealthStats. Solo que aquí no vemos las 24 horas de cada dia, solo la sección de horas donde hay items en esa semana.
 
+#### /views/drifts
+
+Un feed para repasar el desvío hacia atrás. Una tarjeta por día, del más reciente al más antiguo, cargando más días al hacer scroll.
+
+Cada tarjeta lleva el mismo timeline que se ve al registrar un Round: el plan justo encima de lo realmente hecho, ambos sobre el mismo eje de segundos desde el inicio del Round. Así el desvío se lee en el borde derecho de la pista de abajo, sin necesidad de números.
+
+En la cabecera de cada tarjeta, el día y su desvío total, enlazando al /rounds/:id de ese día.
+
+Los días sin Round no aparecen: el feed lista Rounds, no días de calendario.
+
 ### /settings
 
 Round history: botón para ver /rounds.
