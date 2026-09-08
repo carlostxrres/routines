@@ -54,7 +54,7 @@ export function ViewsPage() {
   const ViewComponent = view.component;
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4 p-4">
       <PageHeader title={view.name} description={view.description} />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -116,9 +116,11 @@ export function ViewsPage() {
             </CardContent>
           </Card>
 
-          <Suspense fallback={<Skeleton className="h-72 w-full" />}>
-            <ViewComponent routine={routine} />
-          </Suspense>
+          <div className="flex flex-1 min-h-0 flex-col">
+            <Suspense fallback={<Skeleton className="h-72 w-full" />}>
+              <ViewComponent routine={routine} />
+            </Suspense>
+          </div>
         </>
       )}
     </div>

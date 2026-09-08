@@ -108,7 +108,7 @@ export function WeekView({ routine }: ViewProps) {
   const hourTicks = Array.from({ length: span + 1 }, (_, index) => minHour + index);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-1 min-h-0 flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <Button
           variant="outline"
@@ -159,8 +159,8 @@ export function WeekView({ routine }: ViewProps) {
       )}
 
       {!loading && blocks.length > 0 && (
-        <div className="flex gap-1">
-          <div className="relative w-10 shrink-0" style={{ height: `${span * 44}px` }}>
+        <div className="flex min-h-72 flex-1 gap-1">
+          <div className="relative w-10 shrink-0">
             {hourTicks.map((hour) => (
               <span
                 key={hour}
@@ -172,17 +172,14 @@ export function WeekView({ routine }: ViewProps) {
             ))}
           </div>
 
-          <div className="grid flex-1 grid-cols-7 gap-1">
+          <div className="grid flex-1 auto-rows-fr grid-cols-7 gap-1">
             {days.map((day, dayIndex) => (
               <div key={day.toString()} className="flex flex-col gap-1">
                 <span className="text-center text-xs text-muted-foreground">
                   {day.toLocaleString("es-ES", { weekday: "narrow" })}
                   <span className="ml-0.5 tabular-nums">{day.day}</span>
                 </span>
-                <div
-                  className="relative flex-1 rounded-md bg-muted"
-                  style={{ height: `${span * 44}px` }}
-                >
+                <div className="relative flex-1 rounded-md bg-muted">
                   {blocks
                     .filter((block) => block.dayIndex === dayIndex)
                     .map((block) => (
